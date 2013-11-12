@@ -7,7 +7,7 @@ When a player attempts to place or break a block, the plugins checks to see if t
 
 ### Configuration:
 Pretty straight-forward. You add worlds as needed, and then regions in each world.
-For each world you can set a message and color. If none is provided, a default message will be used and the color will be set to red.
+For each region you can set a message and color. If none is provided, a default message will be used and the color will be set to red.
 
 #### Example:
     worlds:
