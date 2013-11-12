@@ -22,8 +22,6 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 	@Override
 	public void onEnable()
 	{
-		//getLogger().info("WGDistanceMessage loaded");
-
 		this.saveDefaultConfig();
 
 		Set<String> worldNames = getConfig().getConfigurationSection("worlds").getKeys(false);
@@ -43,7 +41,7 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 					if(region.wgRegion != null)
 					{
 						regions.add(region);
-					 	getLogger().info("Added WorldGuard region '" + regionName + "' in world '" + worldName + "'.");
+						getLogger().info("Added WorldGuard region '" + regionName + "' in world '" + worldName + "'.");
 					}
 					else
 					{

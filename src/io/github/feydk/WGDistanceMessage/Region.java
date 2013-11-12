@@ -24,17 +24,17 @@ public class Region
 		if(this.message == null || this.message.isEmpty())
 			this.message = "This is a protected area where you can't build or break blocks.";
 
-		// Default color if none is provided or is invalid.
 		try
 		{
 			this.color = ChatColor.getByChar(color);
 		}
+		// Default color if none is provided or is invalid.
 		catch(Exception ex)
 		{
 			this.color = ChatColor.RED;
 		}
 
 		RegionManager manager = WGBukkit.getRegionManager(Bukkit.getWorld(this.world));
-        this.wgRegion = manager.getRegion(this.name);
+		this.wgRegion = manager.getRegion(this.name);
 	}
 }
