@@ -1,8 +1,5 @@
 package io.github.feydk.WGDistanceMessage;
 
-import com.sk89q.worldguard.protection.managers.RegionManager;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -14,70 +11,112 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import com.sk89q.worldguard.bukkit.WGBukkit;
 import static com.sk89q.worldguard.bukkit.BukkitUtil.toVector;
 import com.sk89q.worldedit.BlockVector;
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.Set;
 
 public final class WGDistanceMessage extends JavaPlugin implements Listener
 {
-	private ChatColor color;
-	private String region_name;
+	private ArrayList<Region> regions;
 
 	@Override
 	public void onEnable()
 	{
-		getLogger().info("WGDistanceMessage loaded");
+		//getLogger().info("WGDistanceMessage loaded");
 
 		this.saveDefaultConfig();
 
-		try
-		{
-			String config_color = getConfig().getString("color");
-			this.color = ChatColor.getByChar(config_color);
-		}
-		catch(Exception ex)
-		{
-			this.color = ChatColor.RED;
-		}
+		Set<String> worldNames = getConfig().getConfigurationSection("worlds").getKeys(false);
 
-		this.region_name = getConfig().getString("region");
+		if(worldNames != null)
+		{
+			regions = new ArrayList<Region>();
+
+			for(String worldName : worldNames)
+			{
+				Set<String> regionNames = getConfig().getConfigurationSection("worlds." + worldName).getKeys(false);
+
+				for(String regionName : regionNames)
+				{
+					Region region = new Region(worldName, regionName, getConfig().getString("worlds." + worldName + "." + regionName + ".color"), getConfig().getString("worlds." + worldName + "." + regionName + ".message"));
+
+					if(region.wgRegion != null)
+					{
+						regions.add(region);
+					 	getLogger().info("Added WorldGuard region '" + regionName + "' in world '" + worldName + "'.");
+					}
+					else
+					{
+						getLogger().warning("WorldGuard region '" + regionName + "' not found in world '" + worldName + "'.");
+					}
+				}
+			}
+		}
 
 		getServer().getPluginManager().registerEvents(this, this);
 	}
 
-	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+	@EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
 	public void onBlockPlace(BlockPlaceEvent event)
 	{
-		if(event.isCancelled())
+		Player player = event.getPlayer();
+		Location location = event.getBlockPlaced().getLocation();
+		Region region = getMatchedRegion(player, location);
+
+		if(region != null && !WGBukkit.getPlugin().canBuild(player, location))
 		{
-			HandleEvent(event.getPlayer(), event.getBlockPlaced().getLocation());
+			handleEvent(player, region);
+			event.setCancelled(true);
 		}
 	}
 
-	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+	@EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
 	public void onBlockBreak(BlockBreakEvent event)
 	{
-		if(event.isCancelled())
+		Player player = event.getPlayer();
+		Location location = event.getBlock().getLocation();
+		Region region = getMatchedRegion(player, location);
+
+		if(region != null && !WGBukkit.getPlugin().canBuild(player, location))
 		{
-			HandleEvent(event.getPlayer(), event.getBlock().getLocation());
+			handleEvent(player, region);
+			event.setCancelled(true);
 		}
 	}
 
-	private void HandleEvent(Player player, Location blockLocation)
+	private Region getMatchedRegion(Player player, Location blockLocation)
 	{
-		RegionManager manager = WGBukkit.getRegionManager(player.getWorld());
-		ProtectedRegion region = manager.getRegion(this.region_name);
-
-		// If placed/broken block is inside region..
-		if(region.contains(toVector(blockLocation)))
+		for(Region region : this.regions)
 		{
-			// Is the player also inside region?
-			if(region.contains(toVector(player.getLocation())))
+			if(region.world.compareTo(player.getWorld().getName()) == 0)
+			{
+				if(region.wgRegion.contains(toVector(blockLocation)))
+				{
+					return region;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private void handleEvent(Player player, Region region)
+	{
+		// Is the player also inside region?
+		if(region.wgRegion.contains(toVector(player.getLocation())))
+		{
+			String msg = region.message;
+
+			// Only bother with all this if the message contains %info%.
+			if(msg.contains("%info%"))
 			{
 				int we_distance = 0;
 				int ns_distance = 0;
 				String we_direction = "";
 				String ns_direction = "";
 
-				BlockVector minimumPoint = region.getMinimumPoint();
-				BlockVector maximumPoint = region.getMaximumPoint();
+				BlockVector minimumPoint = region.wgRegion.getMinimumPoint();
+				BlockVector maximumPoint = region.wgRegion.getMaximumPoint();
 
 				//player.sendMessage("Region: " + minimumPoint.getX() + ", " + minimumPoint.getZ() + " - " + maximumPoint.getX() + ", " + maximumPoint.getZ());
 
@@ -101,6 +140,15 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 					we_distance = (int)((max_x + 1) - player_x);
 				}
 
+				// If we don't have a direction, it's most likely because we're right in the middle, so just pick a random direction.
+				if(we_direction == "")
+				{
+					String[] strings = {"west", "east"};
+					Random r = new Random();
+
+					we_direction = strings[r.nextInt(2)];
+				}
+
 				// Player is closest to min_z (north).
 				if((player_z - min_z) < (max_z - player_z))
 				{
@@ -112,6 +160,15 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 				{
 					ns_direction = "south";
 					ns_distance = (int)((max_z + 1) - player_z);
+				}
+
+				// If we don't have a direction, it's most likely because we're right in the middle, so just pick a random direction.
+				if(ns_direction == "")
+				{
+					String[] strings = {"north", "south"};
+					Random r = new Random();
+
+					ns_direction = strings[r.nextInt(2)];
 				}
 
 				// Tidy up distances a bit. Makes no sense to output 0 or negative values.
@@ -127,45 +184,45 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 				if(we_distance < 0)
 					we_distance = 0;
 
-				String msg = "This is a protected area where you can't build or break blocks. You need to travel ";
+				String info = "";
 
 				if(ns_distance > 0 && we_distance > 0)
 				{
-					msg += ns_distance + " block";
+					info += ns_distance + " block";
 
 					if(ns_distance > 1)
-						msg += "s";
+						info += "s";
 
-					msg += " " + ns_direction + " or " + we_distance + " block";
+					info += " " + ns_direction + " or " + we_distance + " block";
 
 					if(we_distance > 1)
-						msg += "s";
+						info += "s";
 
-					msg += " " + we_direction;
+					info += " " + we_direction;
 				}
 				else if(ns_distance > 0)
 				{
-					msg += ns_distance + " block";
+					info += ns_distance + " block";
 
 					if(ns_distance > 1)
-						msg += "s";
+						info += "s";
 
-					msg += " " + ns_direction;
+					info += " " + ns_direction;
 				}
 				else if(we_distance > 0)
 				{
-					msg += we_distance + " block";
+					info += we_distance + " block";
 
 					if(we_distance > 1)
-						msg += "s";
+						info += "s";
 
-					msg += " " + we_direction;
+					info += " " + we_direction;
 				}
 
-				msg += " to leave the protected area.";
-
-				player.sendMessage(this.color + msg);
+				msg = msg.replaceAll("%info%", info);
 			}
+
+			player.sendMessage(region.color + msg);
 		}
 	}
 }

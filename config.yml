@@ -1,2 +1,12 @@
-color: c
-region: spawntest
+worlds:
+    world:
+        spawntest:
+            message: "This is a protected area where you can't build or break blocks. You need to travel %info% to leave the protected area."
+            color: c
+        othertest:
+            message: "You can't build here. You need to travel %info% to leave the protected area."
+            color: e
+    world_nether:
+        nethertest:
+            message: "Testing 1-2-3."
+            color: 3
