@@ -11,18 +11,14 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.plugin.Plugin;
-import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.bukkit.WGBukkit;
-import static com.sk89q.worldguard.bukkit.BukkitUtil.*;
 import static com.sk89q.worldguard.bukkit.BukkitUtil.toVector;
-
 import com.sk89q.worldedit.BlockVector;
 
 public final class WGDistanceMessage extends JavaPlugin implements Listener
 {
 	private ChatColor color;
-	private String region;
+	private String region_name;
 
 	@Override
 	public void onEnable()
@@ -41,7 +37,7 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 			this.color = ChatColor.RED;
 		}
 
-		this.region = getConfig().getString("region");
+		this.region_name = getConfig().getString("region");
 
 		getServer().getPluginManager().registerEvents(this, this);
 	}
@@ -67,18 +63,18 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 	private void HandleEvent(Player player, Location blockLocation)
 	{
 		RegionManager manager = WGBukkit.getRegionManager(player.getWorld());
-		ProtectedRegion region = manager.getRegion(this.region);
+		ProtectedRegion region = manager.getRegion(this.region_name);
 
-		// If placed block is inside region..
+		// If placed/broken block is inside region..
 		if(region.contains(toVector(blockLocation)))
 		{
 			// Is the player also inside region?
 			if(region.contains(toVector(player.getLocation())))
 			{
-				int we_distance = 100;
-				int ns_distance = 130;
-				String we_direction = "west";
-				String ns_direction = "north";
+				int we_distance = 0;
+				int ns_distance = 0;
+				String we_direction = "";
+				String ns_direction = "";
 
 				BlockVector minimumPoint = region.getMinimumPoint();
 				BlockVector maximumPoint = region.getMaximumPoint();
@@ -118,6 +114,7 @@ public final class WGDistanceMessage extends JavaPlugin implements Listener
 					ns_distance = (int)((max_z + 1) - player_z);
 				}
 
+				// Tidy up distances a bit. Makes no sense to output 0 or negative values.
 				if(ns_distance == 0)
 					ns_distance = 1;
 
